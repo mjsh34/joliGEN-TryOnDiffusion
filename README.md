@@ -1,3 +1,23 @@
+# Fork to train/test TryOnDiffusion on comsumer GPU (24G VRAM)
+Note: this is not a faithful implementation of [TryOnDiffusion](https://tryondiffusion.github.io/), but an image-to-image translation diffusion model with a modified U-Net, as described in https://github.com/jolibrain/joliGEN/pull/530
+This repository adds some convenience scripts for training/testing this implementation.
+
+This project is a WIP.
+
+## Installation
+1. Install torch packages (2.x) using https://pytorch.org/get-started/locally/
+2. Install from requirements.txt
+
+## Preprocess VITON-HD dataset for TryOnDiffusion
+- https://www.joligen.com/doc/datasets.html#datasets-with-bbox-and-reference-image-conditioning
+
+```
+python scripts/preprocess_viton.py --zip-file /path/to/zalando-hd-resized.zip --target-dir /save/processed/data/here --dilate 5 --save-conditions
+```
+
+## Train TryOnDiffusion
+---
+
 <div align="center">
 <img src="imgs/joligen.svg" width="512">
 </div>

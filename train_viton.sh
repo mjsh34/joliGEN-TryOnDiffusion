@@ -1,0 +1,27 @@
+#!/bin/bash
+python train.py \
+	--dataroot ../Datasets/processed/VITON_HD/ \
+     --checkpoints_dir ./checkpoints/VITON_HD \
+     --name VITON-HD \
+     --gpu_ids 0 \
+     --model_type palette \
+     --train_batch_size 8 \
+     --data_num_threads 16 \
+     --train_iter_size 1 \
+     --model_input_nc 3 \
+     --model_output_nc 3 \
+     --data_relative_paths \
+     --train_G_ema \
+     --train_optim adamw \
+     --data_dataset_mode self_supervised_labeled_mask \
+     --data_load_size 256 \
+     --data_crop_size 256 \
+     --G_netG unet_mha \
+     --data_online_creation_rand_mask_A \
+     --train_G_lr 0.0001 \
+     --train_n_epochs 100 \
+     --dataaug_no_rotate \
+     --dataaug_no_flip \
+     --output_display_freq 20000 \
+     --output_print_freq 500 \
+     --output_display_visdom_autostart 

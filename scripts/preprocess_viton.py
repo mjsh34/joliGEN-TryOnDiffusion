@@ -28,17 +28,27 @@ def parse_args():
         default=1,
         help="size of the square kernel for mask dilation",
     )
+    parser.add_argument(
+        "--save-conditions",
+        action='store_true')
     return parser.parse_args()
 
 
-def process(image, zf, target_dir, dilate):
+def process(image, zf, target_dir, dilate, save_conditions=False, padding=None):
     stage = Path("trainA" if "train/" in image else "testA")
     basename = Path(image).stem
 
+    padding = padding or {
+            "top_padding": 5,
+            "bottom_padding": 15,
+            "left_padding": 20,
+            "right_padding": 20,
+    }
+
     # extract raw image
     rel_image = stage / "imgs" / (basename + ".jpg")
-    target = target_dir / rel_image
-    target.write_bytes(zf.read(image))
+    target_img = target_dir / rel_image
+    target_img.write_bytes(zf.read(image))
 
     # extract mask
     mask = image.replace("/image/", "/image-parse-v3/").replace(".jpg", ".png")
@@ -46,17 +56,68 @@ def process(image, zf, target_dir, dilate):
     mask = cv2.imdecode(np.frombuffer(mask, np.uint8), 1)
     orange = np.array([0, 85, 254])
     mask = cv2.inRange(mask, orange, orange)
-    mask = np.clip(mask, 0, 1)
+    mask = 255 * np.clip(mask, 0, 1)
     kernel = np.ones((dilate, dilate), np.uint8)
     mask = cv2.dilate(mask, kernel)
     rel_mask = stage / "mask" / (basename + ".png")
-    target = target_dir / rel_mask
-    cv2.imwrite(str(target), mask)
+    target_mask = target_dir / rel_mask
+    cv2.imwrite(str(target_mask), mask)
+
+    if save_conditions:
+        # extract bbox
+        mask = image.replace("/image/", "/image-parse-v3/").replace(".jpg", ".png")
+        mask = zf.read(mask)
+        mask = cv2.imdecode(np.frombuffer(mask, np.uint8), 1)
+        orange = np.array([0, 85, 254])
+        mask = cv2.inRange(mask, orange, orange)
+        mask = np.clip(mask, 0, 1)
+        masked_inds = np.where(mask > 0)
+        try:
+            top = masked_inds[0].min()
+            bottom = masked_inds[0].max()
+            left = masked_inds[1].min()
+            right = masked_inds[1].max()
+            mask_w, mask_h = right - left, bottom - top
+            assert mask_w > 0 and mask_h > 0
+        except:
+            print("Cannot identify proper mask for '{}'. Skipping...".format(image))
+            os.remove(target_img)
+            os.remove(target_mask)
+            return False
+
+        top = max(0, top - padding['top_padding'])
+        left = max(0, left - padding['left_padding'])
+        bottom = min(mask.shape[0] - 1, bottom + padding['bottom_padding'])
+        right = min(mask.shape[1] - 1, right + padding['right_padding'])
+
+        # bbox
+        rel_bbox = stage / "bbox" / (basename + ".txt")
+        target = target_dir / rel_bbox
+        target.open('w').write("1 {} {} {} {}\n".format(left, top, right, bottom))
+
+        # ref
+        rel_ref = stage / "ref" / (basename + ".jpg")
+        garment = zf.read(image.replace("/image/", "/cloth/"))
+        garment = cv2.imdecode(np.frombuffer(garment, np.uint8), 1)
+        target = target_dir / rel_ref
+        cv2.imwrite(str(target), garment)
+
+        # conditions
+        rel_cond = stage / "cond" / (basename + ".txt")
+        target = target_dir / rel_cond
+        target.open('w').write(str(stage / "ref" / (basename + ".jpg")) + "\n")
+
+        # append to conditions.txt
+        pairs = target_dir / stage / "conditions.txt"
+        pairs = pairs.open("a")
+        pairs.write(f"{rel_image} {rel_cond}\n")
 
     # add paths
     pairs = target_dir / stage / "paths.txt"
     pairs = pairs.open("a")
-    pairs.write(f"{rel_image} {rel_mask}\n")
+    pairs.write(f"{rel_image} {rel_bbox}\n")
+
+    return True
 
 
 def main():
@@ -66,17 +127,25 @@ def main():
     zip_file = Path(args.zip_file)
     assert zip_file.is_file()
     target_dir = Path(args.target_dir)
-    assert not target_dir.exists()
+    #assert not target_dir.exists()
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
     for folder1 in ["trainA", "testA"]:
-        for folder2 in ["imgs", "mask"]:
+        for folder2 in ["imgs", "mask", "bbox", "ref", "cond"]:
             folder = target_dir / folder1 / folder2
             folder.mkdir(parents=True)
 
     # process images
     zf = zipfile.ZipFile(zip_file)
     images = [name for name in zf.namelist() if "/image/" in name and "_00.jpg" in name]
+    nfailed = 0
     for image in tqdm(images):
-        process(image, zf, target_dir, args.dilate)
+        success = process(image, zf, target_dir, args.dilate, save_conditions=args.save_conditions)
+        if not success:
+            nfailed += 1
+
+    print("Processed {} images; {} succeded ({} failed).".format(
+        len(images), len(images) - nfailed, nfailed))
 
 
 if __name__ == "__main__":
