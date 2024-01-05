@@ -16,6 +16,10 @@ python scripts/preprocess_viton.py --zip-file /path/to/zalando-hd-resized.zip --
 ```
 
 ## Train TryOnDiffusion
+1. Start visdom for visualization: (in venv) `python -m visdom.server`
+2. Start training (you may need to adjust some arguments inside shell script): `python train_tryondiffusion.sh`
+3. You can see training visualization at http://localhost:8097/env/tryondiffusion_viton
+
 ---
 
 <div align="center">
