@@ -21,6 +21,50 @@ python3 ${current_dir}/../scripts/generate_doc.py --save_to ""
 OUT=$?
 
 if [ $OUT != 0 ]; then
+   exit 1
+fi
+
+####### CLI help
+echo "CLI help"
+python3 ${current_dir}/../train.py --help
+OUT=$?
+
+if [ $OUT != 0 ]; then
+    exit 1
+fi
+
+python3 ${current_dir}/../train.py --help f_s
+OUT=$?
+
+if [ $OUT != 0 ]; then
+    exit 1
+fi
+
+python3 ${current_dir}/../train.py --help alg
+OUT=$?
+
+if [ $OUT != 0 ]; then
+    exit 1
+fi
+
+python3 ${current_dir}/../train.py --help alg_cut
+OUT=$?
+
+if [ $OUT != 0 ]; then
+    exit 1
+fi
+
+python3 ${current_dir}/../train.py --help alg_palette
+OUT=$?
+
+if [ $OUT != 0 ]; then
+    exit 1
+fi
+
+python3 ${current_dir}/../train.py --help alg_cm
+OUT=$?
+
+if [ $OUT != 0 ]; then
     exit 1
 fi
 
@@ -68,6 +112,14 @@ fi
 
 ###### diffusion process test
 python3 -m pytest -p no:cacheprovider -s "${current_dir}/../tests/test_run_diffusion.py" --dataroot "$TARGET_MASK_SEM_DIR"
+OUT=$?
+
+if [ $OUT != 0 ]; then
+    exit 1
+fi
+
+###### consistency model process test
+python3 -m pytest -p no:cacheprovider -s "${current_dir}/../tests/test_run_cm.py" --dataroot "$TARGET_MASK_SEM_DIR"
 OUT=$?
 
 if [ $OUT != 0 ]; then
