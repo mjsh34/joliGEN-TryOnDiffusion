@@ -12,7 +12,7 @@ This project is a WIP.
 - https://www.joligen.com/doc/datasets.html#datasets-with-bbox-and-reference-image-conditioning
 
 ```
-python scripts/preprocess_viton.py --zip-file /path/to/zalando-hd-resized.zip --target-dir /save/processed/data/here --dilate 5 --save-conditions
+python scripts/preprocess_viton.py --zip-file /path/to/zalando-hd-resized.zip --target-dir /save/processed/data/here --dilate 5 --save_conditions --padding "0 0 0 0"
 ```
 
 ## Train TryOnDiffusion

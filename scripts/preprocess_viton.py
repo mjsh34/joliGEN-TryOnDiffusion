@@ -29,8 +29,9 @@ def parse_args():
         help="size of the square kernel for mask dilation",
     )
     parser.add_argument(
-        "--save-conditions",
+        "--save_conditions",
         action='store_true')
+    parser.add_argument('--padding', default="", help="{top_padding} {left_padding} {bottom_padding} {right_padding}")
     parser.add_argument(
         "--bbox_fill_image",
         action='store_true',
@@ -43,10 +44,10 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
     basename = Path(image).stem
 
     padding = kw.get("padding", {
-            "top_padding": 5,
-            "bottom_padding": 15,
-            "left_padding": 20,
-            "right_padding": 20,
+            "top": 5,
+            "bottom": 15,
+            "left": 20,
+            "right": 20,
     })
 
     # extract raw image
@@ -90,10 +91,10 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
                 os.remove(target_mask)
                 return False
 
-            top = max(0, top - padding['top_padding'])
-            left = max(0, left - padding['left_padding'])
-            bottom = min(mask.shape[0] - 1, bottom + padding['bottom_padding'])
-            right = min(mask.shape[1] - 1, right + padding['right_padding'])
+            top = max(0, top - padding['top'])
+            left = max(0, left - padding['left'])
+            bottom = min(mask.shape[0] - 1, bottom + padding['bottom'])
+            right = min(mask.shape[1] - 1, right + padding['right'])
         else: # bbox_fill_image
             top, left, bottom, right = 0, 0, mask.shape[0] - 1, mask.shape[1] - 1
 
@@ -119,16 +120,31 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
         pairs = pairs.open("a")
         pairs.write(f"{rel_image} {rel_cond}\n")
 
-    # add paths
-    pairs = target_dir / stage / "paths.txt"
-    pairs = pairs.open("a")
-    pairs.write(f"{rel_image} {rel_bbox}\n")
+        # add paths
+        pairs = target_dir / stage / "paths.txt"
+        pairs = pairs.open("a")
+        pairs.write(f"{rel_image} {rel_bbox}\n")
+    else:
+        # add paths
+        pairs = target_dir / stage / "paths.txt"
+        pairs = pairs.open("a")
+        pairs.write(f"{rel_image} {rel_mask}\n")
 
     return True
 
 
 def main():
     args = parse_args()
+
+    padding = None
+    if args.padding:
+        padding_tlbr = [int(p) for p in args.padding.split(" ")]
+        padding = {
+            'top': padding_tlbr[0],
+            'left': padding_tlbr[1],
+            'bottom': padding_tlbr[2],
+            'right': padding_tlbr[3]
+        }
 
     # create dataset folders
     zip_file = Path(args.zip_file)
@@ -148,7 +164,8 @@ def main():
     nfailed = 0
     for image in tqdm(images):
         success = process(image, zf, target_dir, args.dilate,
-                save_conditions=args.save_conditions, bbox_fill_image=args.bbox_fill_image)
+                save_conditions=args.save_conditions, bbox_fill_image=args.bbox_fill_image,
+                padding=padding)
         if not success:
             nfailed += 1
 
