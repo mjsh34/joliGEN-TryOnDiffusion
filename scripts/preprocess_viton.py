@@ -31,19 +31,23 @@ def parse_args():
     parser.add_argument(
         "--save-conditions",
         action='store_true')
+    parser.add_argument(
+        "--bbox_fill_image",
+        action='store_true',
+        help="If set, the bbox will span the entire image")
     return parser.parse_args()
 
 
-def process(image, zf, target_dir, dilate, save_conditions=False, padding=None):
+def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
     stage = Path("trainA" if "train/" in image else "testA")
     basename = Path(image).stem
 
-    padding = padding or {
+    padding = kw.get("padding", {
             "top_padding": 5,
             "bottom_padding": 15,
             "left_padding": 20,
             "right_padding": 20,
-    }
+    })
 
     # extract raw image
     rel_image = stage / "imgs" / (basename + ".jpg")
@@ -72,23 +76,26 @@ def process(image, zf, target_dir, dilate, save_conditions=False, padding=None):
         mask = cv2.inRange(mask, orange, orange)
         mask = np.clip(mask, 0, 1)
         masked_inds = np.where(mask > 0)
-        try:
-            top = masked_inds[0].min()
-            bottom = masked_inds[0].max()
-            left = masked_inds[1].min()
-            right = masked_inds[1].max()
-            mask_w, mask_h = right - left, bottom - top
-            assert mask_w > 0 and mask_h > 0
-        except:
-            print("Cannot identify proper mask for '{}'. Skipping...".format(image))
-            os.remove(target_img)
-            os.remove(target_mask)
-            return False
+        if not kw.get('bbox_fill_image', False):
+            try:
+                top = masked_inds[0].min()
+                bottom = masked_inds[0].max()
+                left = masked_inds[1].min()
+                right = masked_inds[1].max()
+                mask_w, mask_h = right - left, bottom - top
+                assert mask_w > 0 and mask_h > 0
+            except:
+                print("Cannot identify proper mask for '{}'. Skipping...".format(image))
+                os.remove(target_img)
+                os.remove(target_mask)
+                return False
 
-        top = max(0, top - padding['top_padding'])
-        left = max(0, left - padding['left_padding'])
-        bottom = min(mask.shape[0] - 1, bottom + padding['bottom_padding'])
-        right = min(mask.shape[1] - 1, right + padding['right_padding'])
+            top = max(0, top - padding['top_padding'])
+            left = max(0, left - padding['left_padding'])
+            bottom = min(mask.shape[0] - 1, bottom + padding['bottom_padding'])
+            right = min(mask.shape[1] - 1, right + padding['right_padding'])
+        else: # bbox_fill_image
+            top, left, bottom, right = 0, 0, mask.shape[0] - 1, mask.shape[1] - 1
 
         # bbox
         rel_bbox = stage / "bbox" / (basename + ".txt")
@@ -140,7 +147,8 @@ def main():
     images = [name for name in zf.namelist() if "/image/" in name and "_00.jpg" in name]
     nfailed = 0
     for image in tqdm(images):
-        success = process(image, zf, target_dir, args.dilate, save_conditions=args.save_conditions)
+        success = process(image, zf, target_dir, args.dilate,
+                save_conditions=args.save_conditions, bbox_fill_image=args.bbox_fill_image)
         if not success:
             nfailed += 1
 
