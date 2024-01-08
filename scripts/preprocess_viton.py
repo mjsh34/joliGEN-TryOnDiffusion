@@ -36,6 +36,10 @@ def parse_args():
         "--bbox_fill_image",
         action='store_true',
         help="If set, the bbox will span the entire image")
+    parser.add_argument(
+        "--debug_vis_bbox",
+        action='store_true',
+        help="Model shots inside imgs/ will have bounding box superimposed. For debugging purposes only.")
     return parser.parse_args()
 
 
@@ -43,12 +47,12 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
     stage = Path("trainA" if "train/" in image else "testA")
     basename = Path(image).stem
 
-    padding = kw.get("padding", {
+    padding = kw.get("padding") or {
             "top": 5,
             "bottom": 15,
             "left": 20,
             "right": 20,
-    })
+    }
 
     # extract raw image
     rel_image = stage / "imgs" / (basename + ".jpg")
@@ -76,7 +80,7 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
         orange = np.array([0, 85, 254])
         mask = cv2.inRange(mask, orange, orange)
         mask = np.clip(mask, 0, 1)
-        masked_inds = np.where(mask > 0)
+        masked_inds = np.nonzero(mask > 0)
         if not kw.get('bbox_fill_image', False):
             try:
                 top = masked_inds[0].min()
@@ -97,6 +101,12 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
             right = min(mask.shape[1] - 1, right + padding['right'])
         else: # bbox_fill_image
             top, left, bottom, right = 0, 0, mask.shape[0] - 1, mask.shape[1] - 1
+
+
+        if kw.get('debug_vis_bbox', False):
+            target_im = cv2.imread(str(target_img)) #cv2.imdecode(np.frombuffer(zf.read(image), np.uint8), 1)
+            target_im[top:bottom+1, left:right+1] = (0.5 * target_im[top:bottom+1, left:right+1]) + 0.5
+            cv2.imwrite(str(target_img), target_im)
 
         # bbox
         rel_bbox = stage / "bbox" / (basename + ".txt")
@@ -164,7 +174,7 @@ def main():
     nfailed = 0
     for image in tqdm(images):
         success = process(image, zf, target_dir, args.dilate,
-                save_conditions=args.save_conditions, bbox_fill_image=args.bbox_fill_image,
+                save_conditions=args.save_conditions, bbox_fill_image=args.bbox_fill_image, debug_vis_bbox=args.debug_vis_bbox,
                 padding=padding)
         if not success:
             nfailed += 1

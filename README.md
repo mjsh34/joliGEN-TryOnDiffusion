@@ -11,6 +11,8 @@ This project is a WIP.
 ## Preprocess VITON-HD dataset for TryOnDiffusion
 - https://www.joligen.com/doc/datasets.html#datasets-with-bbox-and-reference-image-conditioning
 
+At this point, we only prepare the shirts (orange part in image-parse-v3) for training.
+
 ```
 python scripts/preprocess_viton.py --zip-file /path/to/zalando-hd-resized.zip --target-dir /save/processed/data/here --dilate 5 --save_conditions --padding "0 0 0 0"
 ```

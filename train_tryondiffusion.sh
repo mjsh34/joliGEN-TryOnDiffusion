@@ -6,8 +6,8 @@
 #      	--alg_palette_cond_image_creation y_t \
 
 python3 train.py \
-	--dataroot ../Datasets/processed/VITON_HD_refbb \
-	--checkpoints_dir ./checkpoints/tryondiffusion \
-       	--name tryondiffusion_viton \
+	--dataroot ../Datasets/processed/VITON_HD_refbb_paddedB \
+	--checkpoints_dir ./checkpoints/tryondiffusion_datapaddedAB \
+       	--name tryondiffusion_viton_paddedAB \
 	--config_json examples/example_ddpm_unetref_viton.json \
 	#--data_online_creation_load_size_A #768 1024
