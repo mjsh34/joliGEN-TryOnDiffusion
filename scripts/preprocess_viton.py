@@ -37,6 +37,11 @@ def parse_args():
         action='store_true',
         help="If set, the bbox will span the entire image")
     parser.add_argument(
+        "--bbox_fill_image__cloth",
+        action='store_true',
+        help="Only active when --bbox_fill_image is set. If enabled, bbox will span the 'cloth' images in the VITON-HD "
+        "dataset.")
+    parser.add_argument(
         "--debug_vis_bbox",
         action='store_true',
         help="Model shots inside imgs/ will have bounding box superimposed. For debugging purposes only.")
@@ -100,7 +105,13 @@ def process(image, zf, target_dir, dilate, save_conditions=False, **kw):
             bottom = min(mask.shape[0] - 1, bottom + padding['bottom'])
             right = min(mask.shape[1] - 1, right + padding['right'])
         else: # bbox_fill_image
-            top, left, bottom, right = 0, 0, mask.shape[0] - 1, mask.shape[1] - 1
+            if kw.get('bbox_fill_images__cloth', False):
+                cloth = image.replace("/image/", "/cloth/")
+                cloth = zf.read(cloth)
+                cloth = cv2.imdecode(np.frombuffer(cloth, np.uint8), 1)
+                top, left, bottom, right = 0, 0, cloth.shape[0] - 1, cloth.shape[1] - 1
+            else:
+                top, left, bottom, right = 0, 0, mask.shape[0] - 1, mask.shape[1] - 1
 
 
         if kw.get('debug_vis_bbox', False):
@@ -175,6 +186,7 @@ def main():
     for image in tqdm(images):
         success = process(image, zf, target_dir, args.dilate,
                 save_conditions=args.save_conditions, bbox_fill_image=args.bbox_fill_image, debug_vis_bbox=args.debug_vis_bbox,
+                bbox_fill_image__cloth=args.bbox_fill_image__cloth,
                 padding=padding)
         if not success:
             nfailed += 1
